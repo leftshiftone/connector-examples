@@ -29,10 +29,14 @@ def main():
     print("File uploaded")
 
     # after the successful upload the original body from the first request
-    # must be sent to initiate the processing pipeline
-    requests.post(f"{BASE_URL}/process",
+    # must be sent to initiate the processing pipeline for a given language (selected by using the correct path parameter)
+    requests.post(f"{BASE_URL}/de/process", # german
                   json=upload_url_json,
                   auth=auth)
+
+    # requests.post(f"{BASE_URL}/en/process", # english
+    #               json=upload_url_json,
+    #               auth=auth)
 
     print("Processing pipeline started - check MyGPT knowledge base for updates")
 
