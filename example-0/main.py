@@ -30,15 +30,18 @@ def main():
 
     # after the successful upload the original body from the first request
     # must be sent to initiate the processing pipeline for a given language (selected by using the correct path parameter)
-    requests.post(f"{BASE_URL}/de/process", # german
+    # the response is a text/event-stream containing the progress of the processing pipeline
+    # note: the processing pipeline is asynchronous and the response does not indicate the final state of the pipeline
+    session = requests.Session()
+    language = "de" # or "en"
+    with session.post(f"{BASE_URL}/{language}/process", # german
                   json=upload_url_json,
-                  auth=auth)
-
-    # requests.post(f"{BASE_URL}/en/process", # english
-    #               json=upload_url_json,
-    #               auth=auth)
-
-    print("Processing pipeline started - check MyGPT knowledge base for updates")
+                  auth=auth,
+                  stream=True
+                  ) as response:
+        for line in response.iter_lines():
+            if line:
+                print(line)
 
 if __name__ == '__main__':
     main()
