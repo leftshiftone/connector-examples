@@ -38,7 +38,7 @@ def main():
     # ------------------------------------
     # 3. acquire an upload url and the corresponding storage key
     # ------------------------------------
-    document_id = ""
+    document_id = "some-generated-identifier"
     upload_url_response = requests.get(
         f"{API_URL}/knowledge-bases/{KB_ID}/documents/upload-url?doc_id={document_id}",
         headers={"Authorization": f"Bearer {bearer_token}"},
@@ -71,9 +71,9 @@ def main():
             "mime_type": mime_type,
             "size_in_bytes": len(file_content),
             "meta": {
-                "hash": None,
-                "etag": None,
-                "origin_url": None
+                "hash": None, #optional
+                "etag": None, # optional
+                "origin_url": None # optional
             }
         },
     )
