@@ -27,7 +27,7 @@ def main():
     # ------------------------------------
     # 2. acquire a mygpt bearer token
     # ------------------------------------
-    bearer_token_response = requests.post(f"${API_URL}/login", json={
+    bearer_token_response = requests.post(f"{API_URL}/login", json={
         "email": USER,
         "password": PASSWORD,
         "tenant_id": TENANT_ID
@@ -38,7 +38,7 @@ def main():
     # ------------------------------------
     # 3. acquire an upload url and the corresponding storage key
     # ------------------------------------
-    document_id = "some-generated-identifier"
+    document_id = "95829fa6-df25-415b-b593-7d9aac3aa6c0"
     upload_url_response = requests.get(
         f"{API_URL}/knowledge-bases/{KB_ID}/documents/upload-url?doc_id={document_id}",
         headers={"Authorization": f"Bearer {bearer_token}"},
@@ -65,9 +65,9 @@ def main():
         url=f"{API_URL}/knowledge-bases/{KB_ID}/documents",
         headers={"Authorization": f"Bearer {bearer_token}"},
         json={
-            "doc_id": document_id,
+            "doc_id": document_id, #unique identifier of the document
             "storage_key": upload_storage_key,
-            "original_path": file_path,
+            "original_path": file_path, #the path (or name) or the file
             "mime_type": mime_type,
             "size_in_bytes": len(file_content),
             "meta": {
