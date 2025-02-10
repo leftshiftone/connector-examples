@@ -1,0 +1,44 @@
+from typing import List, Dict
+from dataclasses import dataclass, field, asdict
+import uuid
+import json
+
+def new_random_uuid() -> str:
+    return str(uuid.uuid4())
+
+@dataclass
+class UploadFile:
+    file_name: str
+    file_type: str
+    absolute_path: str
+    relative_path: str
+    allowed: bool
+    mime_type: str
+    status: str = "not uploaded"
+    document_id: str = field(default_factory=new_random_uuid)
+
+    def to_dict(self):
+        return {k: v for k, v in asdict(self).items()}
+
+
+class UploadFiles:
+    def __init__(self):
+        self.upload_files: List[UploadFile] = []
+
+    def to_file(self, filename):
+        json_list = [uf.to_dict() for uf in self.upload_files]
+        with open(filename, mode="w", encoding="utf-8") as file:
+            json.dump(json_list, file, ensure_ascii=False)
+
+    def from_file(self, filename):
+        with open(filename, mode="r", encoding="utf-8") as file:
+            json_data = json.load(file)
+            for data in json_data:
+                param_list = []
+                for param in UploadFile.__annotations__:
+                    param_list.append(data[param])
+                upload_file = UploadFile(*param_list)
+                if isinstance(upload_file.allowed, str):
+                    upload_file.allowed = eval(upload_file.allowed)
+                self.upload_files.append(upload_file)
+
