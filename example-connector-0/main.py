@@ -16,7 +16,7 @@ def main():
     # ------------------------------------
     # 1. read a local file
     # ------------------------------------
-    file_path = "/path/to/some/file.txt"
+    file_path = "/home/bnjm/Downloads/käse-fact-1.txt"
     mime_type = "text/plain"
     file_content = None
     with open(file_path, "rb") as f:
@@ -38,7 +38,7 @@ def main():
     # ------------------------------------
     # 3. acquire an upload url and the corresponding storage key
     # ------------------------------------
-    document_id = "95829fa6-df25-415b-b593-7d9aac3aa6c0"
+    document_id = "e5166d80-541f-4d22-af7f-54b21f4aa890"
     upload_url_response = requests.get(
         f"{API_URL}/knowledge-bases/{KB_ID}/documents/upload-url?doc_id={document_id}",
         headers={"Authorization": f"Bearer {bearer_token}"},
@@ -65,15 +65,15 @@ def main():
         url=f"{API_URL}/knowledge-bases/{KB_ID}/documents",
         headers={"Authorization": f"Bearer {bearer_token}"},
         json={
-            "doc_id": document_id, #unique identifier of the document
+            "doc_id": document_id, #unique identifier
             "storage_key": upload_storage_key,
-            "original_path": file_path, #the path (or name) or the file
+            "original_path": "novonet-beitrag-0",
             "mime_type": mime_type,
             "size_in_bytes": len(file_content),
             "meta": {
                 "hash": None, #optional
                 "etag": None, # optional
-                "origin_url": None # optional
+                "origin_url": "https://google.com/robots.txt" # optional
             }
         },
     )
