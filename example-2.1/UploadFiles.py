@@ -2,6 +2,7 @@ from typing import List, Dict
 from dataclasses import dataclass, field, asdict
 import uuid
 import json
+import hashlib
 
 def new_random_uuid() -> str:
     return str(uuid.uuid4())
@@ -16,9 +17,16 @@ class UploadFile:
     mime_type: str
     status: str = "not uploaded"
     document_id: str = field(default_factory=new_random_uuid)
+    hash: str = ""
 
     def to_dict(self):
         return {k: v for k, v in asdict(self).items()}
+
+    def get_hash(self):
+        if self.hash == "":
+            with open(self.absolute_path, mode="rb", buffering=0) as file:
+                self.hash = hashlib.file_digest(file, 'sha256').hexdigest()
+        return self.hash
 
 
 class UploadFiles:

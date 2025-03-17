@@ -62,11 +62,42 @@ def main():
     upload_files = UploadFiles()
     upload_files.upload_files = walk_directory(path=BASE_PATH, base_path=BASE_PATH)
 
-    file_names = [f.file_name for f in upload_files.upload_files]
+    file_names = [f.file_name for f in upload_files.upload_files if f.allowed]
     duplicate_file_names = set([x for x in file_names if file_names.count(x) > 1])
-    print(f"duplicated file_names: {len(duplicate_file_names)}")
-    if yes_no_question("remove duplicates?"):
-        remove_duplicate_by_filename(upload_files.upload_files)
+    if len(duplicate_file_names) > 0:
+        if yes_no_question("do hash comparison?"):
+            true_duplicates = set()
+            for duplicate_file_name in duplicate_file_names:
+                duplicate_files = [f for f in upload_files.upload_files if f.allowed and f.file_name == duplicate_file_name]
+                hashes = {}
+                for duplicate_file in duplicate_files:
+                    if duplicate_file.get_hash() in hashes.keys():
+                        hashes[duplicate_file.get_hash()].append(duplicate_file)
+                    else:
+                        hashes.update({duplicate_file.get_hash(): [duplicate_file]})
+                if len(hashes) == 1:
+                    true_duplicates.add(duplicate_file_name)
+                for same_hash_list in hashes.values():
+                    for i, duplicate_file in enumerate(same_hash_list):
+                        if i == 0:
+                            continue
+                        duplicate_file.allowed = False
+            duplicate_file_names = duplicate_file_names.difference(true_duplicates)
+            print(f"found {len(true_duplicates)} true duplicates and removed them")
+
+        print(f"duplicated file_names: {len(duplicate_file_names)}")
+        if yes_no_question("show duplicates?"):
+            duplicate_list = [f for f in upload_files.upload_files if f.allowed and f.file_name in duplicate_file_names]
+            duplicate_list.sort(key=lambda f:f.file_name)
+            for upload_file in duplicate_list:
+                file_size = os.path.getsize(upload_file.absolute_path)
+                print(f"Name: {upload_file.file_name}")
+                print(f"      Size: {int(file_size/1024)}KB")
+                print(f"      Path: {upload_file.relative_path}")
+                print(f"      Hash:{upload_file.get_hash()}")
+
+        if yes_no_question("remove duplicates?"):
+            remove_duplicate_by_filename(upload_files.upload_files)
 
     ignored_filetypes = {}
     used_filetypes = {}
