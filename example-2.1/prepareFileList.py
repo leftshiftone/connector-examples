@@ -1,6 +1,7 @@
 import os
 from typing import List
 import mimetypes
+import zipfile
 
 from UploadFiles import UploadFile, UploadFiles
 
@@ -61,10 +62,20 @@ def main():
     # ------------------------------------
     upload_files = UploadFiles()
     upload_files.upload_files = walk_directory(path=BASE_PATH, base_path=BASE_PATH)
+    zip_files = [x for x in upload_files.upload_files if x.file_type == ".zip"]
+    if len(zip_files) > 0:
+        if yes_no_question(f"found {len(zip_files)} - unzip them?"):
+            for zip_file in zip_files:
+                with zipfile.ZipFile(zip_file.absolute_path, "r") as zip_ref:
+                    folder, filename = os.path.split(zip_file.absolute_path)
+                    folder_name, ext = os.path.splitext(filename)
+                    zip_ref.extractall(os.path.join(folder, folder_name))
+            upload_files.upload_files = walk_directory(path=BASE_PATH, base_path=BASE_PATH)
 
     file_names = [f.file_name for f in upload_files.upload_files if f.allowed]
     duplicate_file_names = set([x for x in file_names if file_names.count(x) > 1])
     if len(duplicate_file_names) > 0:
+        print(f"duplicated file_names: {len(duplicate_file_names)}")
         if yes_no_question("do hash comparison?"):
             true_duplicates = set()
             for duplicate_file_name in duplicate_file_names:
@@ -98,7 +109,7 @@ def main():
 
         if yes_no_question("remove duplicates?"):
             remove_duplicate_by_filename(upload_files.upload_files)
-
+# FIXME: ignored stimmt nicht wenn keine duplicates removed werden
     ignored_filetypes = {}
     used_filetypes = {}
     for upload_file in upload_files.upload_files:
