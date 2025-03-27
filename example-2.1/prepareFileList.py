@@ -130,7 +130,7 @@ def main():
     for filetype, count in ignored_filetypes.items():
         print(f"  {filetype}: {count}")
 
-    upload_files.to_file(FILENAME)
+    upload_files.to_file(FILENAME, pretty=yes_no_question("pretty print?"))
 
     # fin
 

@@ -10,7 +10,7 @@ TENANT_ID = "a-tenant"
 API_URL = "https://xyz.myg.pt/api/v1"
 KB_ID = "fec26cc4-3318-4ba9-bb06-6d429c6a2741"
 FILENAME = "update_files.json"
-
+UPLOAD_INTERVALL = 10
 
 def main():
     """
@@ -98,7 +98,7 @@ def main():
         # ------------------------------------
         # 8. wait before next upload to avoid system load
         # ------------------------------------
-        time.sleep(30)
+        time.sleep(UPLOAD_INTERVALL)
     # fin
 
 if __name__ == "__main__":

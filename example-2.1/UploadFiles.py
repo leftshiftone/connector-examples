@@ -33,10 +33,13 @@ class UploadFiles:
     def __init__(self):
         self.upload_files: List[UploadFile] = []
 
-    def to_file(self, filename):
+    def to_file(self, filename, pretty: bool = False):
         json_list = [uf.to_dict() for uf in self.upload_files]
         with open(filename, mode="w", encoding="utf-8") as file:
-            json.dump(json_list, file, ensure_ascii=False)
+            if pretty:
+                json.dump(json_list, file, ensure_ascii=False, indent=4)
+            else:
+                json.dump(json_list, file, ensure_ascii=False)
 
     def from_file(self, filename):
         with open(filename, mode="r", encoding="utf-8") as file:
