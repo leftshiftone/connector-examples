@@ -23,7 +23,7 @@ def main():
     # ------------------------------------
     file_path = FILE2UPLOAD
     path, file_name = os.path.split(file_path)
-    mime_type = mimetypes.guess_type(file_path)
+    mime_type, encoding = mimetypes.guess_type(file_path)
     file_content = None
     with open(file_path, "rb") as f:
         file_content = f.read()
