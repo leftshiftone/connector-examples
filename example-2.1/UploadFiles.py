@@ -53,3 +53,6 @@ class UploadFiles:
                     upload_file.allowed = eval(upload_file.allowed)
                 self.upload_files.append(upload_file)
 
+    def get_files_for_upload(self) -> List[UploadFile]:
+        return [uf for uf in self.upload_files if uf.allowed]
+

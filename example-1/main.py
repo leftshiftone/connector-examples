@@ -4,13 +4,13 @@ import os
 import uuid
 import mimetypes
 
-USER = "someuser@local"
-PASSWORD = "???"
-TENANT_ID = "a-tenant"
-API_URL = "https://xyz.myg.pt/api/v1"
-KB_ID = "fec26cc4-3318-4ba9-bb06-6d429c6a2741"
+USER = "admin@local"
+PASSWORD = "!c6TBf^3H7w#DM2N!DnWx6HM"
+TENANT_ID = "test"
+API_URL = "https://beta.api.mygpt.leftshiftone.com/api/v1"
+KB_ID = "411cf2b7-1e16-41f4-82dd-e8310b64e82b"
 
-FILE2UPLOAD = "/path/to/some/file.txt"
+FILE2UPLOAD = "C:\\Users\\ChristofSteinkellner\\Downloads\\MyGPT Insights 20250302 20250401.csv"
 
 
 def main():
@@ -23,7 +23,10 @@ def main():
     # ------------------------------------
     file_path = FILE2UPLOAD
     path, file_name = os.path.split(file_path)
-    mime_type = mimetypes.guess_type(file_path)
+    if file_name.endswith(".csv") and False:
+        mime_type = "text/csv"
+    else:
+        mime_type, encoding = mimetypes.guess_type(file_path)
     file_content = None
     with open(file_path, "rb") as f:
         file_content = f.read()

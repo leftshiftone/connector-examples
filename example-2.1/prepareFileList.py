@@ -8,7 +8,9 @@ from UploadFiles import UploadFile, UploadFiles
 BASE_PATH = "somewhere/here"
 ALLOWED_FILETYPES = [".pdf", ".docx", ".txt", ".pptx", ".xlsx", ".xls", ".doc"]
 IGNORE_PATTERNS = ["~$"]
+IGNORE_FOLDER_NAMES = ["alt", "archiv", "vorab", "__MACOSX", "old"]
 FILENAME = "update_files.json"
+
 
 def walk_directory(path: str, base_path: str) -> List[UploadFile]:
     upload_files: List[UploadFile] = []
@@ -16,13 +18,16 @@ def walk_directory(path: str, base_path: str) -> List[UploadFile]:
         file_path = os.path.join(path, file)
         common_prefix = os.path.commonprefix([path, base_path])
         if os.path.isdir(file_path):
-            upload_files.extend(walk_directory(path=file_path, base_path=base_path))
+            if str(file).lower() not in [n.lower() for n in IGNORE_FOLDER_NAMES]:
+                upload_files.extend(walk_directory(path=file_path, base_path=base_path))
         else:
             pattern_ok = True
             for pattern in IGNORE_PATTERNS:
                 if pattern in file.lower():
                     pattern_ok = False
                     break
+            if not pattern_ok:
+                continue
             file_name, file_extension = os.path.splitext(file)
             filetype_ok = file_extension.lower() in ALLOWED_FILETYPES
 
@@ -34,6 +39,7 @@ def walk_directory(path: str, base_path: str) -> List[UploadFile]:
                                            mime_type=mimetypes.guess_type(file_path)[0]))
     return upload_files
 
+
 def yes_no_question(question: str) -> bool:
     while True:
         answer = input(question + " (y/n)").lower().strip()
@@ -44,13 +50,16 @@ def yes_no_question(question: str) -> bool:
         else:
             print("enter either y or n")
 
+
 def remove_duplicate_by_filename(upload_files: List[UploadFile]):
     file_names = []
     for upload_file in upload_files:
         if upload_file.file_name in file_names:
             upload_file.allowed = False
+            upload_file.status = "Duplicate"
         else:
             file_names.append(upload_file.file_name)
+
 
 def main():
     """
@@ -79,7 +88,8 @@ def main():
         if yes_no_question("do hash comparison?"):
             true_duplicates = set()
             for duplicate_file_name in duplicate_file_names:
-                duplicate_files = [f for f in upload_files.upload_files if f.allowed and f.file_name == duplicate_file_name]
+                duplicate_files = [f for f in upload_files.upload_files if
+                                   f.allowed and f.file_name == duplicate_file_name]
                 hashes = {}
                 for duplicate_file in duplicate_files:
                     if duplicate_file.get_hash() in hashes.keys():
@@ -93,32 +103,37 @@ def main():
                         if i == 0:
                             continue
                         duplicate_file.allowed = False
+                        duplicate_file.status = "Duplicate"
             duplicate_file_names = duplicate_file_names.difference(true_duplicates)
             print(f"found {len(true_duplicates)} true duplicates and removed them")
 
         print(f"duplicated file_names: {len(duplicate_file_names)}")
         if yes_no_question("show duplicates?"):
             duplicate_list = [f for f in upload_files.upload_files if f.allowed and f.file_name in duplicate_file_names]
-            duplicate_list.sort(key=lambda f:f.file_name)
+            duplicate_list.sort(key=lambda f: f.file_name)
             for upload_file in duplicate_list:
                 file_size = os.path.getsize(upload_file.absolute_path)
                 print(f"Name: {upload_file.file_name}")
-                print(f"      Size: {int(file_size/1024)}KB")
+                print(f"      Size: {int(file_size / 1024)}KB")
                 print(f"      Path: {upload_file.relative_path}")
                 print(f"      Hash:{upload_file.get_hash()}")
 
         if yes_no_question("remove duplicates?"):
             remove_duplicate_by_filename(upload_files.upload_files)
-# FIXME: ignored stimmt nicht wenn keine duplicates removed werden
+
     ignored_filetypes = {}
     used_filetypes = {}
+    size_used = 0
     for upload_file in upload_files.upload_files:
         if upload_file.allowed:
+            size_used += os.path.getsize(upload_file.absolute_path)
             if upload_file.file_type in used_filetypes.keys():
                 used_filetypes[upload_file.file_type] += 1
             else:
                 used_filetypes.update({upload_file.file_type: 1})
         else:
+            if upload_file.status == "Duplicate":
+                continue
             if upload_file.file_type in ignored_filetypes.keys():
                 ignored_filetypes[upload_file.file_type] += 1
             else:
@@ -126,6 +141,7 @@ def main():
     print(f"about to index {sum(used_filetypes.values())} files:")
     for filetype, count in used_filetypes.items():
         print(f"  {filetype}: {count}")
+    print(f"total size: {size_used >> 20} MB")
     print(f"{sum(ignored_filetypes.values())} files won't be indexed:")
     for filetype, count in ignored_filetypes.items():
         print(f"  {filetype}: {count}")
@@ -133,6 +149,7 @@ def main():
     upload_files.to_file(FILENAME, pretty=yes_no_question("pretty print?"))
 
     # fin
+
 
 if __name__ == "__main__":
     main()
