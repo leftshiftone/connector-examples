@@ -2,7 +2,7 @@ import MyGPTAPI
 import helpers
 
 APICONFIG = MyGPTAPI.APIConfig()
-APICONFIG.from_file("some_config.json")
+APICONFIG.from_file("api_config.json")
 KB_NAME = "kb name"
 
 
@@ -15,11 +15,10 @@ def main():
 
     errors = api.get_kb_documents_with_errors(kb_id)
     for error_short, docs in helpers.get_kb_documents_by_error(errors).items():
-        if helpers.yes_no_question(f"{len(docs)} errors starting with '{error_short}' - delete them?"):
-            for doc in docs:
-                print(f"deleting document {doc["original_path"]}")
-                api.delete_kb_document(kb_id=kb_id, doc_id=doc["id"])
-
+        if helpers.yes_no_question(f"{len(docs)} errors starting with '{error_short}' - reindex them?"):
+            doc_ids = [doc["id"] for doc in docs]
+            for i in range(0, len(docs), 20):
+                api.reindex_kb_documents(kb_id, doc_ids[i:i+20])
 
 
 if __name__ == "__main__":

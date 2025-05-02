@@ -4,16 +4,14 @@ import threading
 from queue import Queue
 import requests
 from azure.storage.blob import BlobClient
-from UploadFiles import UploadFiles
+from UploadFiles import UploadFiles, UploadFileStatus
 import MyGPTAPI
 
-USER = "someuser@local"
-PASSWORD = "???"
-TENANT_ID = "a-tenant"
-API_URL = "https://xyz.myg.pt/api/v1"
-KB_NAME = "somekb"
-FILENAME = "update_files.json"
-PARALLEL_UPLOADS = 3
+APICONFIG = MyGPTAPI.APIConfig()
+APICONFIG.from_file("api_config.json")
+KB_NAME = "kb_name"
+FILENAME = "upload.json"
+PARALLEL_UPLOADS = 7
 
 
 def upload_threaded(queue: Queue, api: MyGPTAPI.MyGPTAPI, kb_id: str,
@@ -24,7 +22,7 @@ def upload_threaded(queue: Queue, api: MyGPTAPI.MyGPTAPI, kb_id: str,
         with open(upload_file.absolute_path, "rb") as f:
             file_content = f.read()
             if file_content is None:
-                upload_file.status = "empty"
+                upload_file.status = UploadFileStatus.EMPTY
                 continue
 
             for retry in range(3):
@@ -33,7 +31,7 @@ def upload_threaded(queue: Queue, api: MyGPTAPI.MyGPTAPI, kb_id: str,
                     # 5. acquire an upload url and the corresponding storage key
                     # ------------------------------------
                     upload_url_response = requests.get(
-                        f"{api.api_url}/knowledge-bases/{kb_id}/documents/upload-url?doc_id={upload_file.document_id}",
+                        f"{api.api_config.api_url}/knowledge-bases/{kb_id}/documents/upload-url?doc_id={upload_file.document_id}",
                         headers={"Authorization": f"Bearer {api.auth}"},
                     )
                     upload_url_response.raise_for_status()
@@ -46,7 +44,7 @@ def upload_threaded(queue: Queue, api: MyGPTAPI.MyGPTAPI, kb_id: str,
                     #    using Azure Blob Client
                     # ------------------------------------
                     file_size_mb = os.path.getsize(upload_file.absolute_path) >> 20
-                    print(f"start upload for {upload_file.relative_path} ({file_size_mb}MB)")
+                    print(f"({i + 1}/{total_count}) start upload for {upload_file.relative_path} ({file_size_mb}MB)")
                     blob_client = BlobClient.from_blob_url(blob_url=upload_url)
                     response_blob_client = blob_client.upload_blob(file_content, overwrite=True, timeout=1800)
 
@@ -56,7 +54,7 @@ def upload_threaded(queue: Queue, api: MyGPTAPI.MyGPTAPI, kb_id: str,
                     #    meaning a success response here only indicates that the indexing process will start
                     # ------------------------------------
                     trigger_indexing_response = requests.post(
-                        url=f"{api.api_url}/knowledge-bases/{kb_id}/documents",
+                        url=f"{api.api_config.api_url}/knowledge-bases/{kb_id}/documents",
                         headers={"Authorization": f"Bearer {api.auth}"},
                         json={
                             "doc_id": upload_file.document_id,  # unique identifier of the document
@@ -79,7 +77,7 @@ def upload_threaded(queue: Queue, api: MyGPTAPI.MyGPTAPI, kb_id: str,
                     print("error happened, try again")
                     print(e)
                     time.sleep(60)
-        upload_file.status = "indexing"
+        upload_file.status = UploadFileStatus.INDEXING
         with write_lock:
             upload_files.to_file(FILENAME)
 
@@ -98,7 +96,7 @@ def main():
     # ------------------------------------
     # 2. acquire a mygpt bearer token
     # ------------------------------------
-    api = MyGPTAPI.MyGPTAPI(user=USER, password=PASSWORD, api_url=API_URL, tenant_id=TENANT_ID)
+    api = MyGPTAPI.MyGPTAPI(api_config=APICONFIG)
     kb_id = api.get_kb_id_by_name(KB_NAME)
     if kb_id is None:
         print("kb name not found")
@@ -111,7 +109,7 @@ def main():
     queue = Queue()
     upload_count = 0
     for i, upload_file in enumerate(files_for_upload):
-        if not upload_file.allowed or upload_file.status != "not uploaded":
+        if not upload_file.allowed or upload_file.status != UploadFileStatus.NOT_UPLOADED:
             continue
         queue.put((upload_count, upload_file))
         upload_count += 1

@@ -1,11 +1,20 @@
 from typing import List, Dict
 from dataclasses import dataclass, field, asdict
+from enum import Enum
 import uuid
 import json
 import hashlib
 
 def new_random_uuid() -> str:
     return str(uuid.uuid4())
+
+
+class UploadFileStatus(Enum):
+    WRONG_TYPE = "wrong type"
+    NOT_UPLOADED = "not uploaded"
+    DUPLICATE = "Duplicate"
+    INDEXING = "indexing"
+    EMPTY = "empty"
 
 @dataclass
 class UploadFile:
@@ -15,12 +24,18 @@ class UploadFile:
     relative_path: str
     allowed: bool
     mime_type: str
-    status: str = "not uploaded"
+    status: UploadFileStatus = UploadFileStatus.NOT_UPLOADED
     document_id: str = field(default_factory=new_random_uuid)
     hash: str = ""
 
     def to_dict(self):
-        return {k: v for k, v in asdict(self).items()}
+        dict_repr = {}
+        for k, v in asdict(self).items():
+            if isinstance(v, UploadFileStatus):
+                dict_repr.update({k: v.value})
+            else:
+                dict_repr.update({k: v})
+        return dict_repr
 
     def get_hash(self):
         if self.hash == "":
@@ -47,12 +62,32 @@ class UploadFiles:
             for data in json_data:
                 param_list = []
                 for param in UploadFile.__annotations__:
-                    param_list.append(data[param])
+                    if param == "status":
+                        param_list.append(UploadFileStatus(data[param]))
+                    else:
+                        param_list.append(data[param])
                 upload_file = UploadFile(*param_list)
                 if isinstance(upload_file.allowed, str):
                     upload_file.allowed = eval(upload_file.allowed)
                 self.upload_files.append(upload_file)
 
     def get_files_for_upload(self) -> List[UploadFile]:
-        return [uf for uf in self.upload_files if uf.allowed]
+        return [uf for uf in self.upload_files if uf.allowed and uf.status == UploadFileStatus.NOT_UPLOADED]
+
+    def remove_hash_duplicates(self) -> int:
+        hashes = {}
+        for upload_file in self.upload_files:
+            if upload_file.status == UploadFileStatus.DUPLICATE:
+                continue
+            try:
+                hashes[upload_file.get_hash()].append(upload_file)
+            except KeyError:
+                hashes.update({upload_file.get_hash(): [upload_file]})
+        duplicates = 0
+        for same_file_list in hashes.values():
+            for upload_file in same_file_list[1:]:
+                upload_file.status = UploadFileStatus.DUPLICATE
+                duplicates += 1
+        return duplicates
+
 
