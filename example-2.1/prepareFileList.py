@@ -8,7 +8,7 @@ from UploadFiles import UploadFile, UploadFiles, UploadFileStatus
 
 BASE_PATH = "somewhere/here"
 ALLOWED_FILETYPES = [".pdf", ".docx", ".txt", ".pptx", ".xlsx", ".xls", ".doc"]
-IGNORE_PATTERNS = ["~$"]
+IGNORE_PATTERNS = ["~$", "~�"]
 IGNORE_FOLDER_NAMES = ["__MACOSX", "Archiv", "Archive", "00_Archiv"]  # explicitly ignores folder by name
 IGNORE_FOLDER_PATTERNS = ["archiv"]  # ignores all folders containing this name, but prompts each folder
 FILENAME = "update_files.json"
@@ -67,7 +67,7 @@ def remove_duplicate_by_filename(upload_files: List[UploadFile], duplicate_names
 
 def remove_similar_file_names(upload_files: UploadFiles):
     relative_paths = {}
-    for upload_file in upload_files.upload_files:
+    for upload_file in upload_files.get_all_update_files():
         if upload_file.allowed:
             rel_path, ext = os.path.splitext(upload_file.relative_path)
             try:
@@ -100,8 +100,8 @@ def main():
     # 1. get list of files
     # ------------------------------------
     upload_files = UploadFiles()
-    upload_files.upload_files = walk_directory(path=BASE_PATH, base_path=BASE_PATH)
-    zip_files = [x for x in upload_files.upload_files if x.file_type == ".zip"]
+    upload_files.add_update_files(walk_directory(path=BASE_PATH, base_path=BASE_PATH))
+    zip_files = [x for x in upload_files.get_all_update_files() if x.file_type == ".zip"]
     if len(zip_files) > 0:
         print(f"found {len(zip_files)} zip files")
         for zip_file in zip_files:
@@ -111,11 +111,12 @@ def main():
                 with zipfile.ZipFile(zip_file.absolute_path, "r") as zip_ref:
                     folder, filename = os.path.split(zip_file.absolute_path)
                     folder_name, ext = os.path.splitext(filename)
-                    zip_ref.extractall(os.path.join(folder, folder_name))
-            upload_files.upload_files = walk_directory(path=BASE_PATH, base_path=BASE_PATH)
+                    extract_path = os.path.join(folder, folder_name)
+                    zip_ref.extractall(extract_path)
+                    upload_files.add_update_files(walk_directory(path=extract_path, base_path=BASE_PATH))
 
     file_names_dict = {}
-    for upload_file in upload_files.upload_files:
+    for upload_file in upload_files.get_all_update_files():
         if upload_file.allowed:
             try:
                 file_names_dict[upload_file.file_name] += 1
@@ -131,7 +132,7 @@ def main():
         if yes_no_question("do hash comparison?"):
             true_duplicates = set()
             for duplicate_file_name in duplicate_file_names:
-                duplicate_files = [f for f in upload_files.upload_files if
+                duplicate_files = [f for f in upload_files.get_all_update_files() if
                                    f.allowed and f.file_name == duplicate_file_name]
                 hashes = {}
                 for duplicate_file in duplicate_files:
@@ -152,7 +153,7 @@ def main():
 
         print(f"duplicated file_names: {len(duplicate_file_names)}")
         if yes_no_question("show duplicates?"):
-            duplicate_list = [f for f in upload_files.upload_files if f.allowed and f.file_name in duplicate_file_names]
+            duplicate_list = [f for f in upload_files.get_all_update_files() if f.allowed and f.file_name in duplicate_file_names]
             duplicate_list.sort(key=lambda f: f.file_name)
             for upload_file in duplicate_list:
                 file_size = os.path.getsize(upload_file.absolute_path)
@@ -162,7 +163,7 @@ def main():
                 print(f"      Hash:{upload_file.get_hash()}")
 
         if yes_no_question("remove duplicates?"):
-            remove_duplicate_by_filename(upload_files.upload_files, duplicate_file_names)
+            remove_duplicate_by_filename(upload_files.get_all_update_files(), duplicate_file_names)
 
     if yes_no_question("check for hash duplicates?"):
         duplicates = upload_files.remove_hash_duplicates()
@@ -174,7 +175,7 @@ def main():
     ignored_filetypes = {}
     used_filetypes = {}
     size_used = 0
-    for upload_file in upload_files.upload_files:
+    for upload_file in upload_files.get_all_update_files():
         if upload_file.allowed:
             size_used += os.path.getsize(upload_file.absolute_path)
             if upload_file.file_type in used_filetypes.keys():

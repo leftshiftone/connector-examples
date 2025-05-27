@@ -6,17 +6,23 @@ import requests
 from azure.storage.blob import BlobClient
 from UploadFiles import UploadFiles, UploadFileStatus
 import MyGPTAPI
+import helpers
 
 APICONFIG = MyGPTAPI.APIConfig()
 APICONFIG.from_file("api_config.json")
-KB_NAME = "kb_name"
-FILENAME = "upload.json"
-PARALLEL_UPLOADS = 7
+KB_NAME = "My KB"
+FILENAME = "upload_files.json"
+PARALLEL_UPLOADS = 5
+PAUSE = 0
+MAX_UPLOADS = 10000
+
+MAX_FILE_SIZE = 100 * 1024**2
 
 
 def upload_threaded(queue: Queue, api: MyGPTAPI.MyGPTAPI, kb_id: str,
-                    total_count: int, upload_files: UploadFiles, write_lock: threading.Lock):
-    while not queue.empty():
+                    total_count: int, upload_files: UploadFiles, write_lock: threading.Lock,
+                    stop_event: threading.Event):
+    while not queue.empty() and not stop_event.is_set():
         i, upload_file = queue.get()
 
         with open(upload_file.absolute_path, "rb") as f:
@@ -72,14 +78,25 @@ def upload_threaded(queue: Queue, api: MyGPTAPI.MyGPTAPI, kb_id: str,
                     )
                     trigger_indexing_response.raise_for_status()
                     print(f"({i + 1}/{total_count}) starting indexing for '{upload_file.relative_path}'")
+                    upload_file.status = UploadFileStatus.INDEXING
                     break
                 except Exception as e:
                     print("error happened, try again")
                     print(e)
                     time.sleep(60)
-        upload_file.status = UploadFileStatus.INDEXING
+                if stop_event.is_set():
+                    break
         with write_lock:
             upload_files.to_file(FILENAME)
+        if PAUSE > 0:
+            time.sleep(PAUSE)
+
+def stop_thread(stop_event: threading.Event):
+    while not stop_event.is_set():
+        if helpers.yes_no_question("stop?", stop_event):
+            print("about to stop")
+            stop_event.set()
+    print("stopper thread ended")
 
 
 def main():
@@ -108,19 +125,46 @@ def main():
     files_for_upload = upload_files.get_files_for_upload()
     queue = Queue()
     upload_count = 0
+    too_big_files = 0
     for i, upload_file in enumerate(files_for_upload):
         if not upload_file.allowed or upload_file.status != UploadFileStatus.NOT_UPLOADED:
             continue
+        if os.path.getsize(upload_file.absolute_path) >= MAX_FILE_SIZE:
+            too_big_files += 1
+            print(f"size {os.path.getsize(upload_file.absolute_path)>>20}MB {upload_file.absolute_path}")
+            continue
         queue.put((upload_count, upload_file))
         upload_count += 1
+        if upload_count >= MAX_UPLOADS:
+            break
+    if too_big_files > 0:
+        print(f"{too_big_files} files ignored due to their size")
+
     threads = []
     lock = threading.Lock()
+    event = threading.Event()
     for i in range(PARALLEL_UPLOADS):
-        t = threading.Thread(target=upload_threaded, args=(queue, api, kb_id, upload_count, upload_files, lock))
+        t = threading.Thread(target=upload_threaded, args=(queue, api, kb_id, upload_count, upload_files, lock, event), daemon=True)
         threads.append(t)
         t.start()
-    for t in threads: t.join()
+
+    stopper = threading.Thread(target=stop_thread, args=(event,))
+    stopper.start()
+    try:
+        for t in threads: t.join()
+        print("all worker-threads are done")
+        print("press enter to stop")
+        event.set()
+        stopper.join()
+    except KeyboardInterrupt:
+        print("wait for threads to finish")
+        event.set()
+        for t in threads: t.join()
+        stopper.join()
     # fin
+
+    with lock:
+        upload_files.to_file(FILENAME, pretty=True)
 
 
 if __name__ == "__main__":

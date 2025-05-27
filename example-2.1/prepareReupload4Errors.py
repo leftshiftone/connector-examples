@@ -20,7 +20,7 @@ def main():
     for filename in FILENAMES:
         temp_upload_files = UploadFiles()
         temp_upload_files.from_file(filename)
-        upload_files.upload_files.extend(temp_upload_files.upload_files)
+        upload_files.add_update_files(temp_upload_files.get_all_update_files())
 
     new_upload_files = UploadFiles()
     errors = api.get_kb_documents_with_errors(kb_id)
@@ -29,13 +29,13 @@ def main():
             for doc in docs:
                 doc_file = None
                 doc_id = doc["id"]
-                for upload_file in upload_files.upload_files:
+                for upload_file in upload_files.get_all_update_files():
                     if upload_file.document_id == doc_id:
                         doc_file = upload_file
                         break
                 if doc_file is not None:
                     doc_file.status = UploadFileStatus.NOT_UPLOADED
-                    new_upload_files.upload_files.append(doc_file)
+                    new_upload_files.add_update_file(doc_file)
                 else:
                     print(f"file with id {doc_id} not found")
 

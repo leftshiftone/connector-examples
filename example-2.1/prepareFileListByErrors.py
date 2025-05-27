@@ -5,7 +5,7 @@ from UploadFiles import UploadFile, UploadFiles, UploadFileStatus
 
 APICONFIG = MyGPTAPI.APIConfig()
 APICONFIG.from_file("config.json")
-KB_NAME = "Quality"
+KB_NAME = "KB Name"
 BASE_PATH = "C:\\a\\b"
 FILENAME = "reupload.json"
 
@@ -19,6 +19,7 @@ def main():
 
     upload_files = UploadFiles()
     errors = api.get_kb_documents_with_errors(kb_id)
+    print(f"found {len(errors)} erroneous documents")
     for error_short, docs in helpers.get_kb_documents_by_error(errors).items():
         if helpers.yes_no_question(f"{len(docs)} errors starting with '{error_short}' - use them?"):
             for doc in docs:
@@ -28,18 +29,16 @@ def main():
                     continue
                 folder_path, file_name = os.path.split(doc_path)
                 file_name_wo_ext, file_extension = os.path.splitext(file_name)
-                upload_files.upload_files.append(UploadFile(file_name=file_name,
-                                                            file_type=file_extension.lower(),
-                                                            absolute_path=doc_path,
-                                                            relative_path=doc["original_path"],
-                                                            allowed=True,
-                                                            status=UploadFileStatus.NOT_UPLOADED,
-                                                            mime_type=doc["mime_type"]))
+                upload_files.add_update_file(UploadFile(file_name=file_name,
+                                                         file_type=file_extension.lower(),
+                                                         absolute_path=doc_path,
+                                                         relative_path=doc["original_path"],
+                                                         allowed=True,
+                                                         status=UploadFileStatus.NOT_UPLOADED,
+                                                         mime_type=doc["mime_type"]))
 
+                upload_files.to_file(filename=FILENAME, pretty=True)
 
-    upload_files.to_file(filename=FILENAME, pretty=True)
-
-
-if __name__ == "__main__":
-    main()
-    print("Done")
+                if __name__ == "__main__":
+                    main()
+                print("Done")

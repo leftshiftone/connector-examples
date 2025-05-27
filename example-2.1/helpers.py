@@ -1,7 +1,10 @@
 from typing import List, Dict
+from threading import Event
 
-def yes_no_question(question: str) -> bool:
-    while True:
+def yes_no_question(question: str, stop_event: Event = None) -> bool:
+    if stop_event is None:
+        stop_event = Event()
+    while not stop_event.is_set():
         answer = input(question + " (y/n)").lower().strip()
         if answer == "y":
             return True
@@ -9,6 +12,7 @@ def yes_no_question(question: str) -> bool:
             return False
         else:
             print("enter either y or n")
+    return False
 
 
 def get_kb_documents_by_error(kb_documents: List[dict]) -> Dict[str, List[dict]]:

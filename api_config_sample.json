@@ -1,0 +1,6 @@
+{
+  "user": "username",
+  "password": "*********",
+  "tenant_id": "My Tenant",
+  "api_url": "https://api.myg.pt/api/v1"
+}

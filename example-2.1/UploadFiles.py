@@ -46,10 +46,23 @@ class UploadFile:
 
 class UploadFiles:
     def __init__(self):
-        self.upload_files: List[UploadFile] = []
+        self.upload_files: Dict[str, UploadFile] = {}
+
+    def add_update_file(self, update_file: UploadFile):
+        self.upload_files.update({update_file.document_id: update_file})
+
+    def add_update_files(self, update_files: List[UploadFile]):
+        for uf in update_files:
+            self.add_update_file(uf)
+
+    def get_update_file_by_id(self, doc_id: str) -> UploadFile:
+        return self.upload_files[doc_id]
+
+    def get_all_update_files(self) -> List[UploadFile]:
+        return list(self.upload_files.values())
 
     def to_file(self, filename, pretty: bool = False):
-        json_list = [uf.to_dict() for uf in self.upload_files]
+        json_list = [uf.to_dict() for uf in self.get_all_update_files()]
         with open(filename, mode="w", encoding="utf-8") as file:
             if pretty:
                 json.dump(json_list, file, ensure_ascii=False, indent=4)
@@ -69,14 +82,14 @@ class UploadFiles:
                 upload_file = UploadFile(*param_list)
                 if isinstance(upload_file.allowed, str):
                     upload_file.allowed = eval(upload_file.allowed)
-                self.upload_files.append(upload_file)
+                self.add_update_file(upload_file)
 
     def get_files_for_upload(self) -> List[UploadFile]:
-        return [uf for uf in self.upload_files if uf.allowed and uf.status == UploadFileStatus.NOT_UPLOADED]
+        return [uf for uf in self.get_all_update_files() if uf.allowed and uf.status == UploadFileStatus.NOT_UPLOADED]
 
     def remove_hash_duplicates(self) -> int:
         hashes = {}
-        for upload_file in self.upload_files:
+        for upload_file in self.get_all_update_files():
             if upload_file.status == UploadFileStatus.DUPLICATE:
                 continue
             try:
