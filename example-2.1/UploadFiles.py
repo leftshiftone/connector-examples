@@ -75,10 +75,13 @@ class UploadFiles:
             for data in json_data:
                 param_list = []
                 for param in UploadFile.__annotations__:
-                    if param == "status":
-                        param_list.append(UploadFileStatus(data[param]))
-                    else:
-                        param_list.append(data[param])
+                    try:
+                        if param == "status":
+                            param_list.append(UploadFileStatus(data[param]))
+                        else:
+                            param_list.append(data[param])
+                    except KeyError:
+                        pass
                 upload_file = UploadFile(*param_list)
                 if isinstance(upload_file.allowed, str):
                     upload_file.allowed = eval(upload_file.allowed)

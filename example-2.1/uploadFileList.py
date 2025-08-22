@@ -16,7 +16,7 @@ PARALLEL_UPLOADS = 5
 PAUSE = 0
 MAX_UPLOADS = 10000
 
-MAX_FILE_SIZE = 100 * 1024**2
+MAX_FILE_SIZE = 100 * 1024 ** 2
 
 
 def upload_threaded(queue: Queue, api: MyGPTAPI.MyGPTAPI, kb_id: str,
@@ -52,7 +52,8 @@ def upload_threaded(queue: Queue, api: MyGPTAPI.MyGPTAPI, kb_id: str,
                     file_size_mb = os.path.getsize(upload_file.absolute_path) >> 20
                     print(f"({i + 1}/{total_count}) start upload for {upload_file.relative_path} ({file_size_mb}MB)")
                     blob_client = BlobClient.from_blob_url(blob_url=upload_url)
-                    response_blob_client = blob_client.upload_blob(file_content, overwrite=True, timeout=1800)
+                    response_blob_client = blob_client.upload_blob(file_content, overwrite=True, timeout=1800,
+                                                                   connection_timeout=14400)
 
                     # ------------------------------------
                     # 7. send an indexing request
@@ -90,6 +91,7 @@ def upload_threaded(queue: Queue, api: MyGPTAPI.MyGPTAPI, kb_id: str,
             upload_files.to_file(FILENAME)
         if PAUSE > 0:
             time.sleep(PAUSE)
+
 
 def stop_thread(stop_event: threading.Event):
     while not stop_event.is_set():
@@ -131,7 +133,7 @@ def main():
             continue
         if os.path.getsize(upload_file.absolute_path) >= MAX_FILE_SIZE:
             too_big_files += 1
-            print(f"size {os.path.getsize(upload_file.absolute_path)>>20}MB {upload_file.absolute_path}")
+            print(f"size {os.path.getsize(upload_file.absolute_path) >> 20}MB {upload_file.absolute_path}")
             continue
         queue.put((upload_count, upload_file))
         upload_count += 1
@@ -144,7 +146,8 @@ def main():
     lock = threading.Lock()
     event = threading.Event()
     for i in range(PARALLEL_UPLOADS):
-        t = threading.Thread(target=upload_threaded, args=(queue, api, kb_id, upload_count, upload_files, lock, event), daemon=True)
+        t = threading.Thread(target=upload_threaded, args=(queue, api, kb_id, upload_count, upload_files, lock, event),
+                             daemon=True)
         threads.append(t)
         t.start()
 
