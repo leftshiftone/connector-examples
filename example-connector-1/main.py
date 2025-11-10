@@ -1,7 +1,7 @@
 import time
 
 import requests
-from azure.storage.blob import BlobClient
+from azure.storage.blob import BlobClient, ContentSettings
 from dataclasses import dataclass, field
 import os
 from typing import List
@@ -132,7 +132,11 @@ def main():
             #    using Azure Blob Client
             # ------------------------------------
             blob_client = BlobClient.from_blob_url(blob_url=upload_url)
-            response_blob_client = blob_client.upload_blob(file_content, overwrite=True)
+
+            # note: be aware that the content-type should be set accordingly - otherwise
+            # downloads may not work as intended
+            blob_client.upload_blob(file_content, content_settings=ContentSettings(content_type=f"{upload_file.mime_type}"), overwrite=True)
+
 
             # ------------------------------------
             # 7. send an indexing request

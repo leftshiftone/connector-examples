@@ -1,5 +1,5 @@
 import requests
-from azure.storage.blob import BlobClient
+from azure.storage.blob import BlobClient, ContentSettings
 import os
 import uuid
 import mimetypes
@@ -59,7 +59,9 @@ def main():
     #    using Azure Blob Client
     # ------------------------------------
     blob_client = BlobClient.from_blob_url(blob_url=upload_url)
-    blob_client.upload_blob(file_content, overwrite=True)
+    # note: be aware that the content-type should be set accordingly - otherwise
+    # downloads may not work as intended
+    blob_client.upload_blob(file_content, content_settings=ContentSettings(content_type=f"{mime_type}"), overwrite=True)
 
 
     # ------------------------------------
